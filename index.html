@@ -203,6 +203,10 @@
       <span id="statusText">Desligado</span>
     </div>
 
+    <div id="deviceHint" style="margin-top:10px;color:#9aa4b2;font-size:12px;line-height:1.4">
+      No celular, conecte o fone antes de tocar em “Começar a ouvir”.
+    </div>
+
     <div class="meter" aria-label="Nível do microfone">
       <div class="meter-fill" id="meterFill"></div>
     </div>
@@ -274,8 +278,23 @@
           }
         });
 
+        // Em iPhone/iPad, o Safari pode capturar o microfone mas rotear
+        // a reprodução para a saída errada. Quando disponível, esta configuração
+        // força uma sessão própria para captura + reprodução.
+        try {
+          if (navigator.audioSession) {
+            navigator.audioSession.type = "auto";
+          }
+        } catch (_) {}
+
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         await audioContext.resume();
+
+        try {
+          if (navigator.audioSession) {
+            navigator.audioSession.type = "play-and-record";
+          }
+        } catch (_) {}
 
         source = audioContext.createMediaStreamSource(stream);
         micGain = audioContext.createGain();
@@ -326,6 +345,14 @@
       if (audioContext && audioContext.state !== "closed") {
         await audioContext.close();
       }
+
+      // Restaura o roteamento normal no iOS ao parar.
+      try {
+        if (navigator.audioSession) {
+          navigator.audioSession.type = "playback";
+          navigator.audioSession.type = "auto";
+        }
+      } catch (_) {}
 
       audioContext = null;
       stream = null;
